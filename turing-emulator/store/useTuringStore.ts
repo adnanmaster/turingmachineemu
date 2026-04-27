@@ -3,27 +3,34 @@ import { UniversalTuringMachine } from '@/lib/turing/engine';
 
 interface TuringState {
   machine: UniversalTuringMachine | null;
-  tapeWindow: string;
   tapeDict: Record<number, string>;
   headPosition: number;
   currentState: string;
   steps: number;
   isRunning: boolean;
+  isFinished: boolean;
+  delay: number; // NEU: Animations-Geschwindigkeit
   
   initialize: (binaryCode: string, input: string) => void;
-  step: () => void;
+  step: () => boolean;
   run: () => void;
+  pause: () => void; // NEU: Animation pausieren
+  runInstant: () => void;
   reset: () => void;
+  setDelay: (delay: number) => void; // NEU: Geschwindigkeit ändern
 }
 
 export const useTuringStore = create<TuringState>((set, get) => ({
   machine: null,
-  tapeWindow: "B".repeat(31), 
   tapeDict: {},
   headPosition: 0,
   currentState: "q1",
   steps: 0,
   isRunning: false,
+  isFinished: false,
+  delay: 100, // Standard: 100ms pro Schritt
+
+  setDelay: (delay) => set({ delay }),
 
   initialize: async (binaryCode, input) => {
     const { decodeBinaryTM } = await import('@/lib/turing/compiler');
@@ -33,54 +40,86 @@ export const useTuringStore = create<TuringState>((set, get) => ({
     
     set({ 
       machine, 
-      tapeWindow: snap.tapeWindow, 
       tapeDict: snap.tapeDict,
       headPosition: snap.headPosition, 
       currentState: snap.state, 
       steps: snap.steps,
-      isRunning: false
+      isRunning: false,
+      isFinished: false
     });
   },
 
   step: () => {
     const { machine } = get();
-    if (!machine) return;
+    if (!machine) return false;
     
-    machine.step();
+    const canContinue = machine.step();
     const snap = machine.getSnapshot();
+    
     set({
-      tapeWindow: snap.tapeWindow,
       tapeDict: snap.tapeDict,
       headPosition: snap.headPosition,
       currentState: snap.state,
-      steps: snap.steps
+      steps: snap.steps,
+      isFinished: !canContinue
     });
+    return canContinue;
   },
 
   run: () => {
+    const { machine, isRunning, isFinished } = get();
+    if (!machine || isRunning || isFinished) return;
+    
+    set({ isRunning: true });
+    
+    // NEU: Rekursiver Loop statt setInterval. 
+    // Dadurch wird die Geschwindigkeit live bei jedem Schritt neu ausgelesen!
+    const loop = () => {
+      const { step, delay, isRunning } = get();
+      if (!isRunning) return; // Stoppt sofort, wenn Pause gedrückt wird
+      
+      const active = step();
+      if (!active) {
+        set({ isRunning: false });
+        return;
+      }
+      
+      setTimeout(loop, delay);
+    };
+    
+    loop(); 
+  },
+
+  pause: () => set({ isRunning: false }),
+
+  runInstant: () => {
     const { machine } = get();
     if (!machine) return;
     
     set({ isRunning: true });
     
-    const interval = setInterval(() => {
-      const isAlive = machine.step();
-      const snap = machine.getSnapshot();
-      
+    let isAlive = true;
+    let snap;
+    let fallbackCounter = 0;
+    const MAX_STEPS = 50000; 
+
+    while (isAlive && fallbackCounter < MAX_STEPS) {
+      isAlive = machine.step();
+      snap = machine.getSnapshot();
+      fallbackCounter++;
+    }
+
+    if (snap) {
       set({
-        tapeWindow: snap.tapeWindow,
         tapeDict: snap.tapeDict,
         headPosition: snap.headPosition,
         currentState: snap.state,
-        steps: snap.steps
+        steps: snap.steps,
+        isRunning: false,
+        isFinished: true
       });
-
-      if (!isAlive) {
-        clearInterval(interval);
-        set({ isRunning: false });
-      }
-    }, 75); // Slightly slower so you can actually see the animations!
+    }
   },
 
-  reset: () => set({ machine: null, steps: 0, headPosition: 0, currentState: "q1", tapeDict: {} })
+  reset: () => set({ machine: null, steps: 0, headPosition: 0, currentState: "q1", tapeDict: {}, isRunning: false, isFinished: false })
 }));

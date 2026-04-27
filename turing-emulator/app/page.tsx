@@ -1,156 +1,157 @@
 "use client";
-
 import { useState } from 'react';
 import { useTuringStore } from '@/store/useTuringStore';
 import Tape from '@/components/turing-machine/Tape';
-import { Play, StepForward, RefreshCw } from 'lucide-react';
+import { Play, Pause, StepForward, RefreshCw, Cpu, Database, FastForward, Turtle, Rabbit } from 'lucide-react'; // Pause, Turtle und Rabbit hinzugefügt
 
 export default function Home() {
-  const [binaryInput, setBinaryInput] = useState("");
-  const [tapeInput, setTapeInput] = useState("111");
-  
-  const { 
-    machine, 
-    tapeDict, 
-    headPosition, 
-    currentState, 
-    steps, 
-    isRunning, 
-    initialize, 
-    step, 
-    run, 
-    reset 
-  } = useTuringStore();
+  const [binaryCode, setBinaryCode] = useState("");
+  const [rawInput, setRawInput] = useState("3");
+  const [inputType, setInputType] = useState("decimal_to_unary");
 
-  // Helper to extract all non-blank characters from the tape dictionary
-  const getCompactTapeString = () => {
-    const keys = Object.keys(tapeDict).map(Number);
-    if (keys.length === 0) return "";
-    
-    const min = Math.min(...keys);
-    const max = Math.max(...keys);
-    let out = "";
-    
-    for (let i = min; i <= max; i++) {
-      out += tapeDict[i] || "B";
-    }
-    
-    // Trim leading/trailing Blanks and replace inner Blanks with the ⊔ symbol
-    const trimmed = out.replace(/^B+|B+$/g, '');
-    return trimmed.replace(/B/g, ' ⊔ ') || "Empty";
+  // Neue Variablen aus dem Store geholt: delay, setDelay, pause
+  const { machine, tapeDict, headPosition, currentState, steps, isRunning, isFinished, delay, initialize, step, run, pause, runInstant, reset, setDelay } = useTuringStore();
+
+  const handleStart = () => {
+    let finalInput = rawInput;
+    const num = parseInt(rawInput, 10);
+    if (inputType === "decimal_to_unary" && !isNaN(num)) finalInput = "1".repeat(num);
+    else if (inputType === "decimal_to_binary" && !isNaN(num)) finalInput = num.toString(2);
+    initialize(binaryCode, finalInput);
   };
 
-  const currentOutput = getCompactTapeString();
+  const getFullResult = () => {
+    const keys = Object.keys(tapeDict).map(Number).sort((a, b) => a - b);
+    if (keys.length === 0) return "Leer";
+    const res = keys.map(k => tapeDict[k] === "B" ? "⊔" : tapeDict[k]).join("");
+    const trimmed = res.replace(/^(⊔)+|(⊔)+$/g, '');
+    return trimmed || "Leer";
+  };
+
+  const result = getFullResult();
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-200 p-8 font-sans">
-      <div className="max-w-5xl mx-auto space-y-8">
-        
-        <header className="text-center">
-          <h1 className="text-4xl font-bold text-white mb-2">Turing Machine Emulator</h1>
-          <p className="text-slate-400">ZHAW Theoretische Informatik - Aufgabe 1 & 2</p>
+    <main className="min-h-screen bg-slate-950 text-slate-200 p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <header className="text-center space-y-2">
+          <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">TM Emulator</h1>
+          <p className="text-slate-500 font-medium tracking-widest uppercase text-sm">ZHAW Theoretische Informatik</p>
         </header>
 
-        {/* --- BUILD MODE --- */}
-        {!machine && (
-          <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 space-y-6 shadow-xl">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">
-                Binary Code (Paste your T1, T2, or T_quad code here)
-              </label>
-              <textarea 
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-4 text-emerald-400 font-mono text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-y"
-                rows={6}
-                value={binaryInput}
-                onChange={(e) => setBinaryInput(e.target.value)}
-                placeholder="010010001010011000101010010110001001001010011..."
-              />
+        {!machine ? (
+          <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-2xl shadow-2xl space-y-6 max-w-4xl mx-auto">
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-emerald-400 text-sm font-bold uppercase"><Cpu size={16}/> Programm (Gödel-Nummer)</label>
+              <textarea className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 font-mono text-sm text-emerald-500 focus:ring-2 focus:ring-emerald-500 outline-none transition-all" rows={6} value={binaryCode} onChange={e => setBinaryCode(e.target.value)} placeholder="010010001..." />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-2">
-                Initial Tape Input (e.g., "111" for Unary 3)
-              </label>
-              <input 
-                type="text"
-                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-4 text-white font-mono focus:ring-2 focus:ring-emerald-500 outline-none"
-                value={tapeInput}
-                onChange={(e) => setTapeInput(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-cyan-400 text-sm font-bold uppercase"><Database size={16}/> Input Typ</label>
+                <select className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 outline-none focus:ring-2 focus:ring-cyan-500" value={inputType} onChange={e => setInputType(e.target.value)}>
+                  <option value="decimal_to_unary">Dezimal ➔ Unär (z.B. 3 ➔ 111)</option>
+                  <option value="decimal_to_binary">Dezimal ➔ Binär (z.B. 5 ➔ 101)</option>
+                  <option value="raw">Raw String</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-slate-400 text-sm font-bold uppercase block">Eingabe-Wert</label>
+                <input className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 font-mono focus:ring-2 focus:ring-cyan-500 outline-none" value={rawInput} onChange={e => setRawInput(e.target.value)} />
+              </div>
             </div>
-            <button 
-              onClick={() => initialize(binaryInput, tapeInput)}
-              disabled={!binaryInput.trim()}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-4 rounded-lg transition-colors text-lg"
-            >
-              Compile & Load Machine
-            </button>
+            <button onClick={handleStart} className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl transition-all shadow-lg shadow-emerald-900/20 text-lg uppercase tracking-widest">Maschine Initialisieren</button>
           </div>
-        )}
-
-        {/* --- RUN MODE --- */}
-        {machine && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            
+        ) : (
+          <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
             <Tape tapeDict={tapeDict} headPosition={headPosition} />
-
             <div className="grid grid-cols-3 gap-4">
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 flex flex-col items-center justify-center shadow-lg">
-                <span className="text-slate-400 text-sm mb-1 uppercase tracking-wider">Current State</span>
-                <span className={`text-4xl font-mono font-bold ${currentState === 'q_error' ? 'text-rose-500' : 'text-emerald-400'}`}>
-                  {currentState}
-                </span>
-              </div>
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 flex flex-col items-center justify-center shadow-lg">
-                <span className="text-slate-400 text-sm mb-1 uppercase tracking-wider">Head Position</span>
-                <span className="text-4xl font-mono font-bold text-white">{headPosition}</span>
-              </div>
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 flex flex-col items-center justify-center shadow-lg">
-                <span className="text-slate-400 text-sm mb-1 uppercase tracking-wider">Steps</span>
-                <span className="text-4xl font-mono font-bold text-white">{steps}</span>
-              </div>
+              <StatCard 
+                label="Zustand" 
+                value={isFinished && !currentState.includes('error') ? `${currentState} (Accept)` : currentState} 
+                color={
+                  isFinished 
+                  ? (currentState.includes('error') || currentState.includes('reject') ? "text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]" : "text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]") 
+                  : "text-emerald-400"
+                } 
+              />
+              <StatCard label="Kopf Position" value={headPosition} />
+              <StatCard label="Schritte" value={steps} />
             </div>
-
-            {/* NEW: Live Output Container */}
-            <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 shadow-lg">
-              <span className="text-slate-400 text-sm mb-2 block uppercase tracking-wider text-center">Full Tape Content</span>
-              <div className="text-2xl font-mono text-emerald-300 break-all bg-slate-950 p-4 rounded-lg border border-slate-800 text-center min-h-[4rem] flex flex-col items-center justify-center">
-                <p className="tracking-widest">{currentOutput}</p>
-                {/* Optional: If it's a unary output, show the integer count too! */}
-                {currentOutput.includes("1") && !currentOutput.includes("0") && !currentOutput.includes("X") && (
-                   <span className="text-xs text-slate-500 mt-2 font-sans tracking-normal">
-                     (Unary Decimal Value: {currentOutput.split("1").length - 1})
-                   </span>
+            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-2xl">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter block mb-2 text-center">Aktueller Band-Inhalt (Gekürzt)</span>
+              <div className="bg-black/40 p-4 rounded-xl border border-slate-800 font-mono text-xl text-cyan-300 text-center break-all">
+                {result}
+                {inputType === "decimal_to_unary" && !result.includes("0") && (
+                  <div className="text-[10px] text-slate-600 mt-2">Wert (Unär): {result.replace(/⊔/g, '').length}</div>
                 )}
               </div>
             </div>
+            
+            {/* NEU: Toolbar mit Slider und Play/Pause */}
+            <div className="flex flex-col items-center gap-6 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+              
+              {/* Speed Slider */}
+              <div className="flex items-center gap-4 w-full max-w-lg bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
+                <Turtle className="text-slate-500" size={24} />
+                <input 
+                  type="range" 
+                  min="10" 
+                  max="1000" 
+                  step="10"
+                  // Logik: Wir drehen den Wert um, damit der Regler rechts = schnell bedeutet
+                  value={1010 - delay} 
+                  onChange={(e) => setDelay(1010 - parseInt(e.target.value))}
+                  className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+                <Rabbit className="text-emerald-500 drop-shadow-[0_0_5px_rgba(16,185,129,0.5)]" size={24} />
+              </div>
 
-            <div className="flex justify-center gap-4 bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg">
-              <button 
-                onClick={step} 
-                disabled={isRunning}
-                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-8 py-4 rounded-lg font-medium transition-colors disabled:opacity-50 text-white"
-              >
-                <StepForward size={20} /> Step
-              </button>
-              <button 
-                onClick={run}
-                disabled={isRunning}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 px-8 py-4 rounded-lg font-bold transition-colors disabled:opacity-50 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.5)]"
-              >
-                <Play size={20} /> Run (Laufmodus)
-              </button>
-              <button 
-                onClick={reset}
-                className="flex items-center gap-2 bg-slate-950 hover:bg-rose-950/50 text-rose-400 border border-rose-900/50 px-8 py-4 rounded-lg font-medium transition-colors ml-8"
-              >
-                <RefreshCw size={20} /> Reset Machine
-              </button>
+              {/* Controls */}
+              <div className="flex flex-wrap justify-center gap-4">
+                <ControlButton onClick={step} disabled={isRunning || isFinished} icon={<StepForward size={20}/>} label="Step" />
+                
+                {/* Dynamischer Play/Pause Button */}
+                {isRunning ? (
+                  <ControlButton onClick={pause} icon={<Pause size={20}/>} label="Pause" primary />
+                ) : (
+                  <ControlButton onClick={run} disabled={isFinished} icon={<Play size={20}/>} label="Animation" primary />
+                )}
+                
+                <ControlButton onClick={runInstant} disabled={isRunning || isFinished} icon={<FastForward size={20}/>} label="Sofortiges Resultat" fast />
+                <div className="w-px bg-slate-800 mx-2 hidden sm:block"></div>
+                <ControlButton onClick={reset} icon={<RefreshCw size={20}/>} label="Reset" danger />
+              </div>
             </div>
 
           </div>
         )}
-
       </div>
     </main>
+  );
+}
+
+function StatCard({ label, value, color = "text-white" }: any) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center shadow-lg">
+      <p className="text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">{label}</p>
+      <p className={`text-4xl font-mono font-bold transition-colors duration-300 ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+function ControlButton({ onClick, disabled, icon, label, primary, fast, danger }: any) {
+  let btnClass = "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700";
+  
+  if (primary) {
+    btnClass = "bg-emerald-600 text-white shadow-emerald-900/20 hover:scale-105 border border-emerald-500";
+  } else if (fast) {
+    btnClass = "bg-cyan-600 text-white shadow-cyan-900/20 hover:scale-105 border border-cyan-500";
+  } else if (danger) {
+    btnClass = "bg-rose-950/30 text-rose-500 border border-rose-900/50 hover:bg-rose-900";
+  }
+
+  return (
+    <button onClick={onClick} disabled={disabled} className={`flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold transition-all disabled:opacity-30 disabled:pointer-events-none min-w-[140px] ${btnClass}`}>
+      {icon} {label}
+    </button>
   );
 }

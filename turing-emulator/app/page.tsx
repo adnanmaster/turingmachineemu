@@ -2,14 +2,13 @@
 import { useState } from 'react';
 import { useTuringStore } from '@/store/useTuringStore';
 import Tape from '@/components/turing-machine/Tape';
-import { Play, Pause, StepForward, RefreshCw, Cpu, Database, FastForward, Turtle, Rabbit } from 'lucide-react'; // Pause, Turtle und Rabbit hinzugefügt
+import { Play, Pause, StepForward, RefreshCw, Cpu, Database, FastForward, Turtle, Rabbit } from 'lucide-react';
 
 export default function Home() {
   const [binaryCode, setBinaryCode] = useState("");
   const [rawInput, setRawInput] = useState("3");
   const [inputType, setInputType] = useState("decimal_to_unary");
 
-  // Neue Variablen aus dem Store geholt: delay, setDelay, pause
   const { machine, tapeDict, headPosition, currentState, steps, isRunning, isFinished, delay, initialize, step, run, pause, runInstant, reset, setDelay } = useTuringStore();
 
   const handleStart = () => {
@@ -64,13 +63,18 @@ export default function Home() {
           <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
             <Tape tapeDict={tapeDict} headPosition={headPosition} />
             <div className="grid grid-cols-3 gap-4">
+              {/* ANGEPASST: Prüft nun strikt auf currentState === 'q2' */}
               <StatCard 
                 label="Zustand" 
-                value={isFinished && !currentState.includes('error') ? `${currentState} (Accept)` : currentState} 
+                value={
+                  isFinished 
+                    ? (currentState === "q2" ? "q2 (ACCEPTED)" : `${currentState} (REJECTED)`) 
+                    : currentState
+                } 
                 color={
                   isFinished 
-                  ? (currentState.includes('error') || currentState.includes('reject') ? "text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]" : "text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]") 
-                  : "text-emerald-400"
+                    ? (currentState === "q2" ? "text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" : "text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]") 
+                    : "text-emerald-400"
                 } 
               />
               <StatCard label="Kopf Position" value={headPosition} />
@@ -86,10 +90,9 @@ export default function Home() {
               </div>
             </div>
             
-            {/* NEU: Toolbar mit Slider und Play/Pause */}
+            {/* Toolbar mit Slider und Play/Pause */}
             <div className="flex flex-col items-center gap-6 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
               
-              {/* Speed Slider */}
               <div className="flex items-center gap-4 w-full max-w-lg bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
                 <Turtle className="text-slate-500" size={24} />
                 <input 
@@ -97,7 +100,6 @@ export default function Home() {
                   min="10" 
                   max="1000" 
                   step="10"
-                  // Logik: Wir drehen den Wert um, damit der Regler rechts = schnell bedeutet
                   value={1010 - delay} 
                   onChange={(e) => setDelay(1010 - parseInt(e.target.value))}
                   className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
@@ -105,11 +107,9 @@ export default function Home() {
                 <Rabbit className="text-emerald-500 drop-shadow-[0_0_5px_rgba(16,185,129,0.5)]" size={24} />
               </div>
 
-              {/* Controls */}
               <div className="flex flex-wrap justify-center gap-4">
                 <ControlButton onClick={step} disabled={isRunning || isFinished} icon={<StepForward size={20}/>} label="Step" />
                 
-                {/* Dynamischer Play/Pause Button */}
                 {isRunning ? (
                   <ControlButton onClick={pause} icon={<Pause size={20}/>} label="Pause" primary />
                 ) : (

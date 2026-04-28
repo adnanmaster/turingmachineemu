@@ -101,7 +101,7 @@ export const useTuringStore = create<TuringState>((set, get) => ({
     let isAlive = true;
     let snap;
     let fallbackCounter = 0;
-    const MAX_STEPS = 50000; 
+    const MAX_STEPS = 100000000; 
 
     while (isAlive && fallbackCounter < MAX_STEPS) {
       isAlive = machine.step();
